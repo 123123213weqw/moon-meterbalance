@@ -32,6 +32,10 @@ pub(all) struct NodeResult {
   children : Array[Evidence]
   missing : Array[String]
   local_witness : Witness?
+  tree_state : State
+  feasible_band : Band?
+  tree_witness : Witness?
+  blockers : Array[String]
 }
 
 ///|
@@ -126,6 +130,10 @@ fn local_balance(
     children,
     missing,
     local_witness: None,
+    tree_state: Incomplete,
+    feasible_band: None,
+    tree_witness: None,
+    blockers: [],
   }
   if missing.length() > 0 {
     return pending
@@ -173,13 +181,11 @@ pub fn audit(
   let results = Array::makei(windows.count, interval => {
     let offset = interval * meter_count
     let start = windows.start + interval.to_int64() * windows.step
-    {
-      start,
-      end: start + windows.step,
-      nodes: Array::makei(meter_count, index => {
-        local_balance(tree, slots, offset, index)
-      }),
-    }
+    let nodes = Array::makei(meter_count, index => {
+      local_balance(tree, slots, offset, index)
+    })
+    propagate(tree, slots, offset, nodes)
+    { start, end: start + windows.step, nodes, }
   })
   { root: tree.root_id(), windows: results, }
 }
